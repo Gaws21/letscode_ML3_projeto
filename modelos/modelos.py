@@ -27,10 +27,7 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import StandardScaler
 from sklearn.tree import DecisionTreeClassifier
 
-
-# ANÁLISE E EXPLORAÇÃO DOS DADOS
-
-#ler os datasets
+# Ler os datasets
 train_data_read = pd.read_csv('train_data.csv')
 test_data_read = pd.read_csv('test_data.csv')
 
@@ -46,29 +43,23 @@ drop_columns = [
     ,'measurement_13'
 ]
 
-#DataFrame de treino resultante após exclusão das features com baixa correlação
+# DataFrame de treino resultante após exclusão das features com baixa correlação
 train_data_without_low_correlation_features = train_data_read.drop(axis=1, columns=drop_columns, inplace=False)
 
-#DataFrame de teste resultante após exclusão das features com baixa correlação
+# DataFrame de teste resultante após exclusão das features com baixa correlação
 test_data_without_low_correlation_features = test_data_read.drop(axis=1, columns=drop_columns, inplace=False)
 
-#Setando as features de treino
+# Setando as features de treino
 X_train = train_data_without_low_correlation_features.drop(columns=['failure'])
 
-#Setando o target de treino
+# Setando o target de treino
 y_train = train_data_without_low_correlation_features['failure']
 
-#Setando as features de teste
+# Setando as features de teste
 X_test = test_data_without_low_correlation_features.drop(columns=['failure'])
 
-#Setando o target de teste
+# Setando o target de teste
 y_test = test_data_without_low_correlation_features['failure']
-
-
-# Preprocessamento de dados -> FEATURE ENGINEERING
-
-#Primeramente é necessário separar as colunas categóricas das numéricas.
-#Uma das formas utilizadas é aplicando a filtragem pelo tipo da coluna com o método select_dtypes
 
 # Colunas categoricas
 categorical_columns = list(X_train.select_dtypes('object').columns)
@@ -76,43 +67,38 @@ categorical_columns = list(X_train.select_dtypes('object').columns)
 # Colunas numéricas
 numerical_columns = list(X_train.select_dtypes('number').columns)
 
-#Definida o conjunto de colunas pelo tipo, o próximo passo é definir as tratativas do pipeline.
-#Nesse caso os valores nulos serão substituídos pela string # e posteriormente os dados serão transformados
-#em valores numéricos utilizando a técnica de OneHotEncoder
+# Pipeline de tratamento para features categóricas
 categorical_pipeline = Pipeline([ 
      ('impute', SimpleImputer(strategy='constant', fill_value='#')),
      ('encode', OneHotEncoder(handle_unknown='ignore', sparse=False, drop='first'))
 ])
 
-#Pipeline para tratamento numérico. Nesse caso foi escolhido a estratégia de preenchimento pela média
-#e MinMaxScaler como método de escalonamento.
+# Pipeline para tratamento numérico
 numeric_pipeline = Pipeline([
     ('imputer', SimpleImputer(strategy='median')),
     ('scaler', MinMaxScaler()) 
 ])
 
-#Como será aplicado tratamento separados para as colunas do tipo categórica e numérica
-#será utilizado a técnica de ColumnTransformer. Que permite criar um pipeline com tratamentos
-#distintos por conjunto de colunas.
+# Column Transformer com ambos tratamentos
 column_transformer_pipeline = ColumnTransformer([
     ('cat', categorical_pipeline, categorical_columns),
     ('num', numeric_pipeline, numerical_columns)
 ])
 
-#Transformado os dados cria-se o pipeline de treinamento
+# Pipeline de treinamento
 train_pipeline = Pipeline([
     ('transformer_pipe', column_transformer_pipeline),
     ('balancear', RandomOverSampler(random_state=42)),
-    ('dt', DecisionTreeClassifier(random_state=42))
+    ('estimator', DecisionTreeClassifier(random_state=42))
 ])
 
-# Instanciar um estimador
+# Estimador
 descicion_tree_estimator = DecisionTreeClassifier(random_state=42)
 
 #Instanciar um método de feature selection
 recursive_feature_elimination = RFE(estimator=DecisionTreeClassifier(random_state=42))
 
-# Criar um pipeline
+# Pipeline para o Grid Search
 pipe = Pipeline([
     ('transformer_pipe', column_transformer_pipeline),
     ('balanced_method', RandomOverSampler(random_state=42)),
@@ -122,7 +108,7 @@ pipe = Pipeline([
 
 # Definir os parâmetros do grid search
 param_grid_dt = {"rfe__n_features_to_select" : range(1, X_train.shape[1]+1),
-                 "dt__criterion" : ['gini', 'entropy', 'log_loss']}
+                 "estimator__criterion" : ['gini', 'entropy', 'log_loss']}
 
 # Instanciar os samples de treinamento
 splitter = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
